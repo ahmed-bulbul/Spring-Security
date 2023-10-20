@@ -33,6 +33,7 @@ public class WebSecurityConfig {
     }
 
 
+    //Need to change
     @Bean
     public UserDetailsService userDetailsService() {
         UserDetails user =
@@ -44,6 +45,4 @@ public class WebSecurityConfig {
 
         return new InMemoryUserDetailsManager(user);
     }
-
-
 }
