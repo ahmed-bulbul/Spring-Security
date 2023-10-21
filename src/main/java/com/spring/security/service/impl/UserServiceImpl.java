@@ -1,81 +1,75 @@
 package com.spring.security.service.impl;
 
 
-import com.spring.security.dto.UserRegistrationDto;
+import com.spring.security.dto.UserDto;
 import com.spring.security.entity.Role;
 import com.spring.security.entity.User;
 import com.spring.security.repository.RoleRepository;
 import com.spring.security.repository.UserRepository;
 import com.spring.security.service.UserService;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
 
-
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserServiceImpl(UserRepository userRepository,
-                           PasswordEncoder passwordEncoder,
-                           RoleRepository roleRepository) {
-
+                           RoleRepository roleRepository,
+                           PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
-    }
-
-
-    @Override
-    public User save(UserRegistrationDto registrationDto) {
-
-        var user = new User(registrationDto.getFirstName(),
-                registrationDto.getLastName(),
-                registrationDto.getEmail(),
-                passwordEncoder.encode(registrationDto
-                        .getPassword()),
-                List.of(new Role("ROLE_ADMIN")));
-
-        return userRepository.save(user);
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username)
-            throws UsernameNotFoundException {
+    public void saveUser(UserDto userDto) {
+        User user = new User();
+        user.setFirstName(userDto.getFirstName());
+        user.setLastName(userDto.getLastName());
+        user.setEmail(userDto.getEmail());
 
-        var user = userRepository.findByEmail(username);
-        if (user == null) {
-            throw new UsernameNotFoundException
-                    ("Invalid username or password.");
+        //encrypt the password once we integrate spring security
+        //user.setPassword(userDto.getPassword());
+        user.setPassword(passwordEncoder.encode(userDto.getPassword()));
+        Role role = roleRepository.findByName("ROLE_ADMIN");
+        if(role == null){
+            role = checkRoleExist();
         }
-        return new org.springframework.security
-                .core.userdetails.User(user.getFirstName(),
-                user.getPassword(),
-                mapRolesToAuthorities(user.getRoles()));
+        user.setRoles(Arrays.asList(role));
+        userRepository.save(user);
     }
 
-    private Collection<? extends GrantedAuthority>
-    mapRolesToAuthorities(Collection<Role> roles) {
+    @Override
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
 
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority
-                        (role.getName()))
+    @Override
+    public List<UserDto> findAllUsers() {
+        List<User> users = userRepository.findAll();
+        return users.stream().map((user) -> convertEntityToDto(user))
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public List<User> getAll() {
+    private UserDto convertEntityToDto(User user){
+        UserDto userDto = new UserDto();
+        userDto.setFirstName(user.getFirstName());
+        userDto.setLastName(user.getLastName());
+        userDto.setEmail(user.getEmail());
+        return userDto;
+    }
 
-        return userRepository.findAll();
+    private Role checkRoleExist() {
+        Role role = new Role();
+        role.setName("ROLE_ADMIN");
+        return roleRepository.save(role);
     }
 }
